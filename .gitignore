@@ -1,0 +1,28 @@
+# Neo4j database files
+data/
+logs/
+import/
+metrics/
+plugins/
+
+# Neo4j Desktop
+.neo4jdesktop/
+*.db
+*.db-journal
+*.log
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de entorno
+.env
+*.env
+
+# Node.js (si usas frontend/backend)
+node_modules/
+dist/
+
+# IDEs
+.idea/
+.vscode/
