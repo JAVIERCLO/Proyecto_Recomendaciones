@@ -1,0 +1,6 @@
+﻿n
+"(:Usuario {password: 1234,nombre: Ernesto Ascencio})"
+"(:Usuario {password: 2334,nombre: Hugo Barillas})"
+"(:Usuario {password: abcd,nombre: Iván Blanco})"
+"(:Carro {marca: Porsche,precio: 150000,tipo: deportivo,year: 2020,transmision: automatico,modelo: 911,combustible: gasolina})"
+"(:Carro {marca: Mercedes Benz,precio: 180000,tipo: sedan,year: 2022,transmision: automatico,modelo: Clase S,combustible: gasolina})"
