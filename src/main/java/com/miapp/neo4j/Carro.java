@@ -1,3 +1,5 @@
+package com.miapp.neo4j;
+
 public class Carro {
     
     private String marca;
@@ -6,7 +8,7 @@ public class Carro {
     private String tipo; //sedzn, pick up, SUV, hatchback, deportivo, etc.
     private String combustible; //Gasolina, hibrido, eléctrico
     private String modelo; //Por ejemplo: Porsche 911 S
-    private int year; //Año del vehículo
+    private int year; //Año del vehículo   
 
     public Carro(String marca, String modelo, int year, double precio, String transmision, String tipo, String combustible){
         if(!transmision.equalsIgnoreCase("automatico") && !transmision.equalsIgnoreCase("mecanico") && !transmision.equalsIgnoreCase("automático") && !transmision.equalsIgnoreCase("mecánico")){

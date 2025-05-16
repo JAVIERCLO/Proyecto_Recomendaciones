@@ -1,4 +1,4 @@
-import javax.swing.*;
+package com.miapp.neo4j;
 
 public class Main {  
     public static void main(String[] args) {
@@ -6,10 +6,8 @@ public class Main {
         String USER="neo4j";
          String PASSWORD="proyectoNEO4J";
          String URL = "bolt://localhost:7474";
-        ConexionDB conexion = new ConexionDB(URL, USER, PASSWORD);
-        String mensaje = conexion.prueba();
-        System.out.println(mensaje);
-    conexion.Close();
+        Gestionador conexion = new Gestionador(URL, USER, PASSWORD);
+
 
 
     }
