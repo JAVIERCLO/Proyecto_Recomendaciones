@@ -1,9 +1,0 @@
-﻿n
-"(:Usuario {presupuesto_maximo: 0,id: ,edad: 0,nombre: })"
-"(:Automovil {precio: 0,id: ,modelo: ,año: 0})"
-"(:Marca {id: ,nombre: })"
-"(:Tipo {categoria: ,id: })"
-"(:Combustible {tipo: ,id: })"
-"(:Transmision {tipo: ,id: })"
-"(:Concesionario {direccion: ,id: ,nombre: })"
-"(:Ubicacion {ciudad: ,id: ,pais: })"
