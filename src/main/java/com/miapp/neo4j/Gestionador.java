@@ -1,5 +1,8 @@
 package com.miapp.neo4j;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
@@ -7,8 +10,6 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
 import org.neo4j.driver.types.Node;
-import java.util.ArrayList;
-import java.util.List;
 //Clase de conexión de Java con Neo4J
 public class Gestionador implements MotorDeRecomendaciones{
 
@@ -79,9 +80,21 @@ public class Gestionador implements MotorDeRecomendaciones{
                 Node node = result.next().get("u").asNode();
                 String password = node.get("password").asString();
                 double presupuesto = node.get("presupuesto").asDouble(0.0);
-                return new Usuario(nombre, password, presupuesto, edad);
+                return new Usuario(nombre, password, presupuesto);
             }
             return null;
+        }
+    }
+
+    //Eliminar usuario
+    @Override
+    public boolean eliminarUsuario(String nombre) {
+        String query = "MATCH (u:Usuario {nombre: $nombre}) DETACH DELETE u";
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre));
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -89,29 +102,29 @@ public class Gestionador implements MotorDeRecomendaciones{
     // Crear carro
     @Override
     public void crearCarro(Carro carro) {
-        String query = "CREATE (:Carro {marca: $marca, modelo: $modelo, anio: $anio, precio: $precio, transmision: $transmision, tipoVehiculo: $tipoVehiculo, combustible: $combustible})";
+        String query = "CREATE (:Carro {marca: $marca, modelo: $modelo, year: $year, precio: $precio, transmision: $transmision, tipo: $tipo, combustible: $combustible})";
         try (Session session = driver.session()) {
             session.run(query, Values.parameters(
                     "marca", carro.getMarca(),
                     "modelo", carro.getModelo(),
-                    "anio", carro.getYear(),
+                    "year", carro.getYear(),
                     "precio", carro.getPrecio(),
                     "transmision", carro.getTransmision(),
-                    "tipoVehiculo", carro.getTipo(),
+                    "tipo", carro.getTipo(),
                     "combustible", carro.getCombustible()
             ));
         }
     }
     // Obtener carro por modelo
-    public Carro obtenerCarroPorModelo(String modeloCarro) {
+    public Carro obtenerCarroPorModelo(String modelo) {
         String query = "MATCH (c:Carro {modelo: $modelo}) RETURN c LIMIT 1";
         try (Session session = driver.session()) {
-            Result result = session.run(query, Values.parameters("modelo", modeloCarro));
+            Result result = session.run(query, Values.parameters("modelo", modelo));
             if (result.hasNext()) {
                 Node node = result.next().get("c").asNode();
                 return new Carro(
                         node.get("marca").asString(),
-                        modeloCarro,
+                        modelo,
                         node.get("year").asInt(),
                         node.get("precio").asDouble(),
                         node.get("transmision").asString(),
@@ -125,7 +138,7 @@ public class Gestionador implements MotorDeRecomendaciones{
 
     // Agregar carro favorito a usuario
     @Override
-    public void agregarCarroFavorito(String nombreUsuario, String modeloCarro) {
+    public void agregarCarroFavorito(String nombre, String modelo) {
         String query = "MATCH (u:Usuario {nombre: $usuario}), (c:Carro {modelo: $modelo}) MERGE (u)-[:FAVORITO]->(c)";
         try (Session session = driver.session()) {
             session.run(query, Values.parameters("usuario", nombre, "modelo", modelo));
@@ -133,7 +146,8 @@ public class Gestionador implements MotorDeRecomendaciones{
     }
 
     // Obtener carros favoritos de usuario
-    public List<Carro> obtenerCarrosFavoritosDeUsuario(String nombreUsuario) {
+    @Override
+    public List<Carro> obtenerCarrosFavoritos(String nombreUsuario) {
         List<Carro> favoritos = new ArrayList<>();
         String query = "MATCH (u:Usuario {nombre: $usuario})-[:FAVORITO]->(c:Carro) RETURN c";
         try (Session session = driver.session()) {
@@ -153,4 +167,290 @@ public class Gestionador implements MotorDeRecomendaciones{
         }
         return favoritos;
     }
+    //Eliminar un carro favorito del usuario
+    @Override
+    public boolean eliminarCarroFavorito(String nombre, String modelo) {
+        String query = "MATCH (u:Usuario {nombre: $nombre})-[r:FAVORITO]->(c:Carro {modelo: $modelo}) DELETE r";
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre, "modelo", modelo));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    //Preferencias
+    //Agregar preferencia
+    @Override
+    public void agregarPreferencia(String nombre, String tipoPreferencia, String valorPreferencia) {
+        String tipoNodo;
+        String relacion;
+
+        switch (tipoPreferencia.toLowerCase()) {
+            case "marca":
+                tipoNodo = "Marca";
+                relacion = "PREFIERE_MARCA";
+                break;
+            case "transmision":
+                tipoNodo = "Transmision";
+                relacion = "PREFIERE_TRANSMISION";
+                break;
+            case "tipo":
+                tipoNodo = "TipoVehiculo";
+                relacion = "PREFIERE_TIPO";
+                break;
+            case "combustible":
+                tipoNodo = "Combustible";
+                relacion = "PREFIERE_COMBUSTIBLE";
+                break;
+            case "modelo":
+                tipoNodo = "Modelo";
+                relacion = "PREFIERE_MODELO";
+                break;
+            case "year":
+                tipoNodo = "Year";
+                relacion = "PREFIERE_YEAR";
+                break;
+            default:
+                throw new IllegalArgumentException("Tipo de preferencia no soportado: " + tipoPreferencia);
+        }
+
+        String query = String.format("""
+            MATCH (u:Usuario {nombre: $nombre})
+            MERGE (p:%s {valor: $valor})
+            MERGE (u)-[:%s]->(p)
+        """, tipoNodo, relacion);
+
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre, "valor", valorPreferencia));
+        }
+    }
+    //Eliminar preferencia
+    @Override
+    public boolean eliminarPreferencia(String nombre, String tipoPreferencia, String valorPreferencia) {
+        String tipoNodo;
+        String relacion;
+
+        switch (tipoPreferencia.toLowerCase()) {
+            case "marca":
+                tipoNodo = "Marca";
+                relacion = "PREFIERE_MARCA";
+                break;
+            case "transmision":
+                tipoNodo = "Transmision";
+                relacion = "PREFIERE_TRANSMISION";
+                break;
+            case "tipo":
+                tipoNodo = "TipoVehiculo";
+                relacion = "PREFIERE_TIPO";
+                break;
+            case "combustible":
+                tipoNodo = "Combustible";
+                relacion = "PREFIERE_COMBUSTIBLE";
+                break;
+            case "modelo":
+                tipoNodo = "Modelo";
+                relacion = "PREFIERE_MODELO";
+                break;
+            case "year":
+                tipoNodo = "Year";
+                relacion = "PREFIERE_YEAR";
+                break;
+            default:
+                return false;
+        }
+
+        String query = String.format("""
+            MATCH (u:Usuario {nombre: $nombre})-[r:%s]->(p:%s {valor: $valor})
+            DELETE r
+        """, relacion, tipoNodo);
+
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre, "valor", valorPreferencia));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    //btener preferencias
+    @Override
+    public List<String> obtenerPreferencias(String nombre, String tipoPreferencia) {
+        String tipoNodo;
+        String relacion;
+
+        switch (tipoPreferencia.toLowerCase()) {
+            case "marca":
+                tipoNodo = "Marca";
+                relacion = "PREFIERE_MARCA";
+                break;
+            case "transmision":
+                tipoNodo = "Transmision";
+                relacion = "PREFIERE_TRANSMISION";
+                break;
+            case "tipo":
+                tipoNodo = "TipoVehiculo";
+                relacion = "PREFIERE_TIPO";
+                break;
+            case "combustible":
+                tipoNodo = "Combustible";
+                relacion = "PREFIERE_COMBUSTIBLE";
+                break;
+            case "modelo":
+                tipoNodo = "Modelo";
+                relacion = "PREFIERE_MODELO";
+                break;
+            case "year":
+                tipoNodo = "Year";
+                relacion = "PREFIERE_YEAR";
+                break;
+            default:
+                return new ArrayList<>();
+        }
+
+        String query = String.format("""
+            MATCH (u:Usuario {nombre: $nombre})-[:%s]->(p:%s)
+            RETURN p.valor AS valor
+        """, relacion, tipoNodo);
+
+        List<String> preferencias = new ArrayList<>();
+        try (Session session = driver.session()) {
+            Result result = session.run(query, Values.parameters("nombre", nombre));
+            while (result.hasNext()) {
+                preferencias.add(result.next().get("valor").asString());
+            }
+        }
+        return preferencias;
+    }
+
+    @Override
+    public List<Carro> filtrarCarrosPorPreferencias(String nombre) {
+        String query = """
+            MATCH (u:Usuario {nombre: $nombre})-[:PREFIERE_MARCA]->(m:Marca),
+                  (u)-[:PREFIERE_TRANSMISION]->(t:Transmision),
+                  (u)-[:PREFIERE_TIPO]->(tp:TipoVehiculo),
+                  (u)-[:PREFIERE_COMBUSTIBLE]->(co:Combustible),
+                  (u)-[:PREFIERE_MODELO]->(mo:Modelo),
+                  (u)-[:PREFIERE_YEAR]->(a:Year),
+                  (c:Carro)
+            WHERE c.marca = m.valor
+              AND c.transmision = t.valor
+              AND c.tipo = tp.valor
+              AND c.combustible = co.valor
+              AND c.modelo = mo.valor
+              AND toString(c.year) = a.valor
+            RETURN c
+        """;
+
+        List<Carro> carros = new ArrayList<>();
+        try (Session session = driver.session()) {
+            Result result = session.run(query, Values.parameters("nombre", nombre));
+            while (result.hasNext()) {
+                Node node = result.next().get("c").asNode();
+                carros.add(new Carro(
+                    node.get("marca").asString(),
+                    node.get("modelo").asString(),
+                    node.get("year").asInt(),
+                    node.get("precio").asDouble(),
+                    node.get("transmision").asString(),
+                    node.get("tipo").asString(),
+                    node.get("combustible").asString()
+                ));
+            }
+        }
+        return carros;
+    }
+
+    @Override
+    public List<Carro> filtrarCarrosPorPresupuesto(String nombre) {
+        String query = """
+            MATCH (u:Usuario {nombre: $nombre}), (c:Carro)
+            WHERE c.precio <= u.presupuesto
+            RETURN c
+        """;
+
+        List<Carro> carros = new ArrayList<>();
+        try (Session session = driver.session()) {
+            Result result = session.run(query, Values.parameters("nombre", nombre));
+            while (result.hasNext()) {
+                Node node = result.next().get("c").asNode();
+                carros.add(new Carro(
+                    node.get("marca").asString(),
+                    node.get("modelo").asString(),
+                    node.get("year").asInt(),
+                    node.get("precio").asDouble(),
+                    node.get("transmision").asString(),
+                    node.get("tipo").asString(),
+                    node.get("combustible").asString()
+                ));
+            }
+        }
+        return carros;
+    }
+
+    @Override
+    public List<Carro> generarRecomendaciones(String nombre) {
+        String query = """
+            MATCH (u:Usuario {nombre: $nombre})-[:FAVORITO]->(f:Carro)
+            MATCH (c:Carro)
+            WHERE f.tipo = c.tipo
+              AND f.transmision = c.transmision
+              AND NOT (u)-[:FAVORITO]->(c)
+            RETURN DISTINCT c LIMIT 5
+        """;
+
+        List<Carro> recomendaciones = new ArrayList<>();
+        try (Session session = driver.session()) {
+            Result result = session.run(query, Values.parameters("nombre", nombre));
+            while (result.hasNext()) {
+                Node node = result.next().get("c").asNode();
+                recomendaciones.add(new Carro(
+                    node.get("marca").asString(),
+                    node.get("modelo").asString(),
+                    node.get("year").asInt(),
+                    node.get("precio").asDouble(),
+                    node.get("transmision").asString(),
+                    node.get("tipo").asString(),
+                    node.get("combustible").asString()
+                ));
+            }
+        }
+        return recomendaciones;
+    }
+    @Override
+    public void agregarRecomendacion(String nombre, String modelo) {
+        String query = "MATCH (u:Usuario {nombre: $nombre}), (c:Carro {modelo: $modelo}) MERGE (u)-[:RECOMENDADO]->(c)";
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre, "modelo", modelo));
+        }
+    }
+
+    @Override
+    public List<Carro> obtenerRecomendacionesGuardadas(String nombre) {
+        List<Carro> recomendados = new ArrayList<>();
+        String query = "MATCH (u:Usuario {nombre: $nombre})-[:RECOMENDADO]->(c:Carro) RETURN c";
+        try (Session session = driver.session()) {
+            Result result = session.run(query, Values.parameters("nombre", nombre));
+            while (result.hasNext()) {
+                Node node = result.next().get("c").asNode();
+                recomendados.add(new Carro(
+                    node.get("marca").asString(),
+                    node.get("modelo").asString(),
+                    node.get("year").asInt(),
+                    node.get("precio").asDouble(),
+                    node.get("transmision").asString(),
+                    node.get("tipo").asString(),
+                    node.get("combustible").asString()
+                ));
+            }
+        }
+        return recomendados;
+    }
+    @Override
+    public void limpiarRecomendacionesDeUsuario(String nombre) {
+        String query = "MATCH (u:Usuario {nombre: $nombre})-[r:RECOMENDADO]->() DELETE r";
+        try (Session session = driver.session()) {
+            session.run(query, Values.parameters("nombre", nombre));
+        }
+    }
 }
+
